@@ -1,194 +1,50 @@
-# Sign RAG API — FastAPI + Qdrant + SentenceTransformer
+# RAG Search API with FastEmbed and Qdrant
 
-Hệ thống **Retrieval-Augmented Generation (RAG)** nhỏ gọn cho phép tìm kiếm dữ liệu ký hiệu hoặc mô tả ngôn ngữ thông qua **vector embedding**.  
-Project được triển khai bằng **FastAPI** (Python), **SentenceTransformer BAAI/bge-m3**, và **Qdrant Vector Database**, đóng gói hoàn toàn qua **Docker Compose**.
+This project is a simple RAG-style search API built with FastAPI, FastEmbed, and Qdrant.
 
----
+## How It Works
 
-## Tính năng chính
+- Parses a `.jsonl` file containing word descriptions and region metadata.
+- Generates dense vector embeddings using `fastembed` (`all-MiniLM-L6-v2` model).
+- Stores embeddings and metadata in Qdrant.
+- Provides an API to perform semantic search over the data.
 
-- **Tìm kiếm ngữ nghĩa (semantic search)**: nhập câu truy vấn tự nhiên (VD: *"trái cây"*) và nhận về các kết quả tương tự.
-- **Tự động nhận biết vùng miền (B/T/N)**: xác định miền Bắc, Trung, Nam từ ký hiệu ID.
-- **Tạo embedding bằng model BAAI/bge-m3** (hỗ trợ dense & multilingual).
-- **Lưu trữ vector bền vững bằng Qdrant**, đảm bảo không mất dữ liệu sau khi tắt container.
-- **FastAPI RESTful API**: dễ tích hợp vào webapp hoặc backend khác.
-- **Docker Compose one-click setup**: build & chạy toàn bộ stack chỉ với 1 lệnh.
+## Requirements
 
----
+- Docker + Docker Compose
 
-## Cấu trúc thư mục
+## Getting Started
 
-```
-RAG2/
-│
-├── main.py                 # Mã nguồn FastAPI chính
-├── Dockerfile              # Dockerfile cho API container
-├── docker-compose.yml      # Chạy cả API + Qdrant server
-├── requirements.txt        # Thư viện Python
-├── .dockerignore           # Bỏ qua file không cần build
-├── README.md               # Tài liệu hướng dẫn (file này)
-└── local_description_final.jsonl   # (Dữ liệu gốc của bạn)
-```
+### 1. Prepare Your Data
 
----
+Place your `local_description_final.jsonl` file in the root directory.
 
-## Cài đặt & Chạy
+### 2. Build & Run
 
-### Cài Docker & Docker Compose
-- [Tải Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Kiểm tra:
-  ```bash
-  docker -v
-  docker compose version
-  ```
-
----
-
-### Build và khởi động project
-Trong thư mục `RAG2`:
 ```bash
 docker compose up -d --build
 ```
 
-Lần đầu sẽ mất vài phút vì Docker cần:
-- Cài Python dependencies
-- Tải model `BAAI/bge-m3`
-- Chạy 2 container:  
-  - `qdrant`: vector database  
-  - `sign-rag-api`: FastAPI server
+### 3. Search Endpoint
 
----
-
-### Kiểm tra hệ thống
-```bash
-curl http://localhost:8000/health
 ```
-Kết quả mẫu:
-```json
+GET http://localhost:8000/search?q=example
+```
+
+### 4. Health Check
+
+```
+GET http://localhost:8000/health
+```
+
+### 5. Output Format
+Each search result returns:
+
+```
 {
-  "status": "ok",
-  "model": "BAAI/bge-m3",
-  "qdrant_mode": "server",
-  "collection": "sign_vectors"
+  "score": 0.85,
+  "word": "Example",
+  "description": "Some description",
+  "region": "miền Bắc"
 }
 ```
-
----
-
-## Index dữ liệu (chạy một lần)
-
-Dữ liệu ban đầu nằm trong file `local_description_final.jsonl`.
-
-### Cách 1 — Dùng file JSONL
-```bash
-curl -X POST "http://localhost:8000/index/jsonl"   -H "accept: application/json"   -H "Content-Type: multipart/form-data"   -F "file=@local_description_final.jsonl"
-```
-
-### Cách 2 — Gửi trực tiếp JSON body
-```bash
-curl -X POST "http://localhost:8000/index/records"   -H "Content-Type: application/json"   -d '[
-    {"id":"A01B","word":"xoài","description":"Quả xoài chín vàng ngọt","video_url":"https://..."},
-    {"id":"A02N","word":"chuối","description":"Trái chuối thơm ngon","video_url":"https://..."}
-  ]'
-```
-
-Sau khi index, Qdrant lưu toàn bộ vector vào volume `qdrant_storage`  
-→ Bạn **không cần index lại mỗi lần chạy container**.
-
----
-
-## Tìm kiếm
-
-```bash
-curl -X POST "http://localhost:8000/search"   -H "Content-Type: application/json"   -d '{
-    "query": "trái cây",
-    "limit": 10,
-    "region": "miền Nam",
-    "with_scores": true
-  }'
-```
-
-Kết quả:
-```json
-{
-  "hits": [
-    {
-      "id": 12,
-      "score": 0.914,
-      "payload": {
-        "word": "chuối",
-        "region": "miền Nam",
-        "description": "Trái chuối thơm ngon",
-        "video": "https://...",
-        "full_description": "Ký hiệu của từ 'chuối' (miền Nam): Trái chuối thơm ngon"
-      }
-    }
-  ]
-}
-```
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Mô tả |
-|-----------|--------|-------|
-| `/health` | GET | Kiểm tra trạng thái API & model |
-| `/status` | GET | Xem tổng số bản ghi đã được index |
-| `/index/jsonl` | POST | Upload file JSONL để index |
-| `/index/records` | POST | Gửi JSON trực tiếp để index |
-| `/search` | POST | Truy vấn dữ liệu đã index |
-| `/recreate` | POST | Xóa & tạo lại collection (cẩn thận, mất dữ liệu) |
-
----
-
-## Logic hoạt động
-
-### Giai đoạn 1: Indexing (chạy 1 lần)
-1. Đọc dữ liệu từ JSONL.  
-2. Ghép chuỗi mô tả đầy đủ (`Ký hiệu của từ 'X': ...`).  
-3. Tạo **embedding** bằng model `BAAI/bge-m3`.  
-4. Lưu vector và payload vào Qdrant.
-
-### Giai đoạn 2: Search (người dùng)
-1. Nhận truy vấn (`query`).  
-2. Encode thành vector.  
-3. Qdrant trả về top-k vector gần nhất (Cosine distance).  
-4. API trả về JSON kết quả.
-
----
-
-## Dữ liệu & Volume
-
-| Volume | Mục đích | Mount path |
-|---------|-----------|------------|
-| `qdrant_storage` | Lưu toàn bộ vector & metadata | `/qdrant/storage` |
-| `hf_cache` | Cache model HuggingFace (tăng tốc) | `/root/.cache/huggingface` |
-
-Khi tắt container, dữ liệu vẫn được giữ lại.  
-Xoá volume nếu bạn muốn reset toàn bộ:
-```bash
-docker compose down -v
-```
-
----
-
-## Các lệnh
-
-| Mục đích | Lệnh |
-|-----------|------|
-| Build & chạy | `docker compose up -d --build` |
-| Kiểm tra logs API | `docker logs -f sign-rag-api` |
-| Kiểm tra logs Qdrant | `docker logs -f qdrant` |
-| Dừng toàn bộ | `docker compose down` |
-| Xoá data (reset) | `docker compose down -v` |
-
----
-
-## Ghi chú mở rộng
-
-- API hỗ trợ filter theo `region` (miền Bắc / Trung / Nam).  
-- Có thể chạy ở chế độ server (`QDRANT_URL=http://qdrant:6333`) hoặc embedded (`path="qdrant_storage"`).  
-- Tương thích Python ≥ 3.10, Docker Compose v2.  
-- Nếu cần GPU (CUDA), có thể dùng base image `pytorch/pytorch:2.4.0-cuda12.1-cudnn8-runtime`.
-

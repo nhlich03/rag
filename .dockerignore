@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 *.npy
-.env
-
-/qdrant_storage/
