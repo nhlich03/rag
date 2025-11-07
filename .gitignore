@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.env
+.venv/
+dist/
+build/
+.qdrant/
+qdrant_storage/
+local_description_final.jsonl
+dense_embeddings.npy
+.ipynb_checkpoints/
+*.ipynb
