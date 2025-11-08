@@ -1,33 +1,37 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from qdrant_client import QdrantClient
 from fastembed import TextEmbedding
 
 app = FastAPI()
 
-QDRANT_HOST = "qdrant"
-QDRANT_PORT = 6333
-COLLECTION_NAME = "local_terms"
+model = TextEmbedding(model_name="BAAI/bge-small-en")
 
-embedding_model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+client = QdrantClient(path="/app/data/qdrant_storage")
 
-@app.get("/")
-def root():
-    return {"message": "RAG search API is running with MiniLM and Qdrant!"}
+COLLECTION = "sign_vectors"
 
 @app.get("/search")
-def search(query: str = Query(..., min_length=1)):
-    query_vector = next(embedding_model.embed([query]))
+def search(q: str, limit: int = 5):
+    vec = list(model.query_embed([q]))[0]
 
-    results = client.search(
-        collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
-        limit=5
+    hits = client.search(
+        collection_name=COLLECTION,
+        query_vector=vec,
+        limit=limit
     )
 
     return [
         {
-            "text": r.payload.get("text", ""),
-            "score": r.score
-        } for r in results
+            "score": float(hit.score),
+            "payload": hit.payload
+        }
+        for hit in hits
     ]
+
+@app.get("/collection_info")
+def info():
+    return client.get_collection("sign_vectors")
+
+@app.get("/collections")
+def list_collections():
+    return client.get_collections()

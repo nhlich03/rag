@@ -15,7 +15,8 @@ rag_project/
 ├── app/
 │   ├── main.py
 │   ├── data/
-│   │   └── local_description_final.jsonl  ← Your document data
+│   │   ├── local_description_final.jsonl  ← Your document data
+│   │   └── qdrant_storage 
 │   └── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
