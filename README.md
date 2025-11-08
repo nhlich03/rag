@@ -148,19 +148,4 @@ docker logs rag_api
 ### b. Nếu Gemini báo lỗi 401
 Kiểm tra lại `.env` xem đã điền đúng `GOOGLE_API_KEY`.
 
-### c. Nếu search chỉ ra 1 kết quả
-Có thể do dữ liệu Qdrant chưa đủ hoặc các payload bị trùng. 
-API hiện đã bỏ lọc trùng nên nếu dữ liệu có nhiều vùng miền sẽ hiển thị đầy đủ.
-
 ---
-
-## 7. Gợi ý mở rộng
-
-- Thêm endpoint `/async_semantic_search` để chạy tìm kiếm song song cho các keyword.
-- Tích hợp `BAAI/bge-m3` hoặc `paraphrase-multilingual-MiniLM-L12-v2` nếu cần tiếng Việt tốt hơn.
-- Kết hợp caching để tránh gọi Gemini nhiều lần cho cùng 1 câu hỏi.
-
----
-
-## 8. Tác giả
-RAG API demo – tích hợp FastAPI, Qdrant, FastEmbed và Gemini.
