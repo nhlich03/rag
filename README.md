@@ -6,7 +6,7 @@ Dự án này triển khai một API đơn giản để tìm kiếm ngữ nghĩa
 
 ## 1. Cấu trúc thư mục
 
-\`\`\`
+``` 
 project_root/
 ├── app/
 │   ├── main.py
@@ -15,7 +15,7 @@ project_root/
 │       └── qdrant_storage/
 ├── Dockerfile
 └── docker-compose.yaml
-\`\`\`
+```
 
 ---
 
@@ -28,9 +28,9 @@ project_root/
 
 ### b. Xây dựng và khởi động container
 
-\`\`\`
+```
 docker compose up --build
-\`\`\`
+```
 
 Lần đầu chạy, hệ thống sẽ tự động tải model embedding từ Hugging Face (mất khoảng 1–2 phút).
 
@@ -40,15 +40,15 @@ Lần đầu chạy, hệ thống sẽ tự động tải model embedding từ H
 
 Sau khi container khởi động thành công, truy cập:
 
-\`\`\`
+```
 http://localhost:8000/docs
-\`\`\`
+```
 
 hoặc gọi trực tiếp API:
 
-\`\`\`
+```
 GET http://localhost:8000/search?q=trái+cây&limit=5
-\`\`\`
+```
 
 ---
 
@@ -56,18 +56,18 @@ GET http://localhost:8000/search?q=trái+cây&limit=5
 
 Thư mục dữ liệu Qdrant được lưu cục bộ để không mất dữ liệu sau khi container tắt.
 
-\`\`\`
+```
 volumes:
   - ./app/data/qdrant_storage:/app/data/qdrant_storage
-\`\`\`
+```
 
 Nếu muốn mount cả source code để cập nhật code mà không cần build lại, thêm:
 
-\`\`\`
+```
 volumes:
   - ./app:/app
   - ./app/data/qdrant_storage:/app/data/qdrant_storage
-\`\`\`
+```
 
 ---
 
@@ -75,9 +75,9 @@ volumes:
 
 Nếu bạn đổi model trong main.py, cần xóa dữ liệu cũ vì vector size khác nhau:
 
-\`\`\`
+```
 rm -rf app/data/qdrant_storage/*
-\`\`\`
+```
 
 Sau đó index lại dữ liệu mới bằng script index_data.py (tạo riêng).
 
@@ -87,21 +87,21 @@ Sau đó index lại dữ liệu mới bằng script index_data.py (tạo riêng
 
 - Dừng container:
 
-\`\`\`
+```
 docker compose down
-\`\`\`
+```
 
 - Xem log:
 
-\`\`\`
+```
 docker logs rag_api
-\`\`\`
+```
 
 - Mở shell trong container:
 
-\`\`\`
+```
 docker exec -it rag_api bash
-\`\`\`
+```
 
 ---
 
@@ -111,11 +111,11 @@ docker exec -it rag_api bash
 - Nếu bạn từng dùng model sentence-transformers/all-MiniLM-L6-v2, cần đồng nhất model khi index và search.
 - Mặc định API không có route "/", bạn có thể thêm:
 
-\`\`\`python
+```python
 @app.get("/")
 def root():
     return {"status": "ok", "message": "RAG API is running"}
-\`\`\`
+```
 
 ---
 
