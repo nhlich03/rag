@@ -11,7 +11,7 @@ Luồng hoạt động:
 1. Người dùng gửi một câu văn tự nhiên (ví dụ: "Tôi muốn đi ăn nhà hàng cùng bạn bè").
 2. Gemini sẽ trích xuất 3–5 từ khóa chính (ví dụ: "nhà hàng", "bạn bè", "ăn uống").
 3. Hệ thống sẽ search từng từ khóa riêng biệt trong Qdrant.
-4. Trả kết quả riêng cho từng từ khóa, không gộp và không lọc trùng text (để hiển thị các vùng miền khác nhau).
+4. Trả kết quả riêng cho từng từ khóa.
 
 ---
 
