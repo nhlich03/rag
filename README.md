@@ -1,50 +1,102 @@
-# RAG Search API with FastEmbed and Qdrant
+# 🧠 RAG App with Qdrant + FastAPI + Sentence Transformers
 
-This project is a simple RAG-style search API built with FastAPI, FastEmbed, and Qdrant.
+This is a lightweight Retrieval-Augmented Generation (RAG) prototype that:
+- Uses `local_description_final.jsonl` for document context
+- Generates embeddings using `all-MiniLM-L6-v2`
+- Stores vector embeddings in Qdrant
+- Performs keyword-based search & semantic retrieval via FastAPI
 
-## How It Works
+---
 
-- Parses a `.jsonl` file containing word descriptions and region metadata.
-- Generates dense vector embeddings using `fastembed` (`all-MiniLM-L6-v2` model).
-- Stores embeddings and metadata in Qdrant.
-- Provides an API to perform semantic search over the data.
+## 📁 Project Structure
 
-## Requirements
+```
+rag_project/
+├── app/
+│   ├── main.py
+│   ├── data/
+│   │   └── local_description_final.jsonl  ← Your document data
+│   └── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
 
-- Docker + Docker Compose
+---
 
-## Getting Started
+## 🚀 Getting Started
 
-### 1. Prepare Your Data
+### 1. Requirements
+- Docker + Docker Compose installed
 
-Place your `local_description_final.jsonl` file in the root directory.
-
-### 2. Build & Run
+### 2. Run with Docker
 
 ```bash
-docker compose up -d --build
+docker compose up --build
 ```
 
-### 3. Search Endpoint
+Then visit [http://localhost:8000](http://localhost:8000)
 
-```
-GET http://localhost:8000/search?q=example
-```
+---
 
-### 4. Health Check
+## 🧩 API Endpoints
 
-```
-GET http://localhost:8000/health
-```
+### `GET /`
+Check if the app is running.
 
-### 5. Output Format
-Each search result returns:
+### `POST /search`
+Perform keyword + semantic search.
 
-```
+**Payload:**
+```json
 {
-  "score": 0.85,
-  "word": "Example",
-  "description": "Some description",
-  "region": "miền Bắc"
+  "query": "từ khóa cần tìm"
 }
 ```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "word": "xyz",
+      "description": "...",
+      "score": 0.85
+    },
+    ...
+  ]
+}
+```
+
+---
+
+## 🧠 Embedding Model
+
+Using: `sentence-transformers/all-MiniLM-L6-v2`  
+(via `TextEmbedding` wrapper in `qdrant_client`)
+
+---
+
+## 🗃 Qdrant Configuration
+
+Data is stored in a local Qdrant container (vector DB).  
+Indexing and searching are handled automatically in `main.py`.
+
+---
+
+## ⚠ Notes
+
+- Make sure your `local_description_final.jsonl` is UTF-8 encoded.
+- Adjust the container name, ports, or volumes in `docker-compose.yml` if needed.
+
+---
+
+## 🧼 Clean up
+
+```bash
+docker compose down --volumes --remove-orphans
+```
+
+---
+
+Made with ❤️ for demo purposes.

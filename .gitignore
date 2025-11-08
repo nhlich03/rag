@@ -3,4 +3,5 @@ __pycache__/
 *.npy
 .env
 
-/qdrant_storage/
+qdrant_storage/
+app/data/qdrant_storage/

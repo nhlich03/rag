@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-qdrant-client
-pandas
-numpy
-fastembed
