@@ -1,103 +1,124 @@
-# 🧠 RAG App with Qdrant + FastAPI + Sentence Transformers
+# RAG API – FastAPI + Qdrant + FastEmbed
 
-This is a lightweight Retrieval-Augmented Generation (RAG) prototype that:
-- Uses `local_description_final.jsonl` for document context
-- Generates embeddings using `all-MiniLM-L6-v2`
-- Stores vector embeddings in Qdrant
-- Performs keyword-based search & semantic retrieval via FastAPI
+Dự án này triển khai một API đơn giản để tìm kiếm ngữ nghĩa (semantic search) sử dụng FastAPI, FastEmbed, và Qdrant chạy ở chế độ local.
 
 ---
 
-## 📁 Project Structure
+## 1. Cấu trúc thư mục
 
-```
-rag_project/
+\`\`\`
+project_root/
 ├── app/
 │   ├── main.py
-│   ├── data/
-│   │   ├── local_description_final.jsonl  ← Your document data
-│   │   └── qdrant_storage 
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── data/
+│       └── qdrant_storage/
 ├── Dockerfile
-├── docker-compose.yml
-└── README.md
-```
+└── docker-compose.yaml
+\`\`\`
 
 ---
 
-## 🚀 Getting Started
+## 2. Thiết lập môi trường
 
-### 1. Requirements
-- Docker + Docker Compose installed
+### a. Cài Docker và Docker Compose
+Đảm bảo máy đã cài sẵn:
+- Docker Engine
+- Docker Compose (phiên bản >= 2)
 
-### 2. Run with Docker
+### b. Xây dựng và khởi động container
 
-```bash
+\`\`\`
 docker compose up --build
-```
+\`\`\`
 
-Then visit [http://localhost:8000](http://localhost:8000)
-
----
-
-## 🧩 API Endpoints
-
-### `GET /`
-Check if the app is running.
-
-### `POST /search`
-Perform keyword + semantic search.
-
-**Payload:**
-```json
-{
-  "query": "từ khóa cần tìm"
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "word": "xyz",
-      "description": "...",
-      "score": 0.85
-    },
-    ...
-  ]
-}
-```
+Lần đầu chạy, hệ thống sẽ tự động tải model embedding từ Hugging Face (mất khoảng 1–2 phút).
 
 ---
 
-## 🧠 Embedding Model
+## 3. Kiểm tra hoạt động
 
-Using: `sentence-transformers/all-MiniLM-L6-v2`  
-(via `TextEmbedding` wrapper in `qdrant_client`)
+Sau khi container khởi động thành công, truy cập:
 
----
+\`\`\`
+http://localhost:8000/docs
+\`\`\`
 
-## 🗃 Qdrant Configuration
+hoặc gọi trực tiếp API:
 
-Data is stored in a local Qdrant container (vector DB).  
-Indexing and searching are handled automatically in `main.py`.
-
----
-
-## ⚠ Notes
-
-- Make sure your `local_description_final.jsonl` is UTF-8 encoded.
-- Adjust the container name, ports, or volumes in `docker-compose.yml` if needed.
+\`\`\`
+GET http://localhost:8000/search?q=trái+cây&limit=5
+\`\`\`
 
 ---
 
-## 🧼 Clean up
+## 4. Mount dữ liệu Qdrant
 
-```bash
-docker compose down --volumes --remove-orphans
-```
+Thư mục dữ liệu Qdrant được lưu cục bộ để không mất dữ liệu sau khi container tắt.
+
+\`\`\`
+volumes:
+  - ./app/data/qdrant_storage:/app/data/qdrant_storage
+\`\`\`
+
+Nếu muốn mount cả source code để cập nhật code mà không cần build lại, thêm:
+
+\`\`\`
+volumes:
+  - ./app:/app
+  - ./app/data/qdrant_storage:/app/data/qdrant_storage
+\`\`\`
 
 ---
 
-Made with ❤️ for demo purposes.
+## 5. Tái tạo dữ liệu (nếu đổi model)
+
+Nếu bạn đổi model trong main.py, cần xóa dữ liệu cũ vì vector size khác nhau:
+
+\`\`\`
+rm -rf app/data/qdrant_storage/*
+\`\`\`
+
+Sau đó index lại dữ liệu mới bằng script index_data.py (tạo riêng).
+
+---
+
+## 6. Lệnh hữu ích
+
+- Dừng container:
+
+\`\`\`
+docker compose down
+\`\`\`
+
+- Xem log:
+
+\`\`\`
+docker logs rag_api
+\`\`\`
+
+- Mở shell trong container:
+
+\`\`\`
+docker exec -it rag_api bash
+\`\`\`
+
+---
+
+## 7. Ghi chú
+
+- Model embedding hiện tại: BAAI/bge-small-en
+- Nếu bạn từng dùng model sentence-transformers/all-MiniLM-L6-v2, cần đồng nhất model khi index và search.
+- Mặc định API không có route "/", bạn có thể thêm:
+
+\`\`\`python
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "RAG API is running"}
+\`\`\`
+
+---
+
+## 8. License
+
+Dự án được phát triển cho mục đích học tập và thử nghiệm.
