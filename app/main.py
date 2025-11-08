@@ -80,7 +80,19 @@ def semantic_search(text: str, limit: int = 5):
     """
 
     # --- 1️⃣ Gọi Gemini trích keyword ---
-    intent_prompt = f"""Hãy trích xuất các từ khóa quan trọng mô tả ý định của câu sau, cách nhau bởi dấu phẩy: "{text}" """
+    intent_prompt = f"""
+    Bạn là hệ thống hỗ trợ tìm kiếm ngôn ngữ ký hiệu tiếng Việt.
+
+    Nhiệm vụ của bạn là trích xuất ra các từ khóa ngắn, quan trọng và mang tính ngữ nghĩa cao 
+    từ câu sau để mô tả ý định hoặc chủ đề chính, dùng cho việc tìm kiếm trong cơ sở dữ liệu mô tả ký hiệu.
+
+    Yêu cầu:
+    - Chỉ trả về các từ khóa, cách nhau bởi dấu phẩy.
+    - Mỗi từ khóa nên là một từ hoặc cụm ngắn (1–3 từ), không chứa dấu chấm hoặc dấu ngoặc.
+    - Không thêm lời giải thích hay văn bản thừa.
+
+    Câu đầu vào: "{text}"
+    """
     resp = gemini_model.generate_content(intent_prompt)
 
     keywords_raw = resp.text.strip() if hasattr(resp, "text") else str(resp)
