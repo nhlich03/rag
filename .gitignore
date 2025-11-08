@@ -6,3 +6,4 @@ __pycache__/
 qdrant_storage/
 app/data/qdrant_storage/
 app/data/pre_qdrant_storage/
+app/.env

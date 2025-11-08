@@ -3,3 +3,5 @@ uvicorn
 fastembed
 qdrant-client
 numpy
+python-dotenv
+google-genai

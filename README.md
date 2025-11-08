@@ -1,124 +1,166 @@
-# RAG API – FastAPI + Qdrant + FastEmbed
+# RAG API with FastAPI, Gemini, and Qdrant
 
-Dự án này triển khai một API đơn giản để tìm kiếm ngữ nghĩa (semantic search) sử dụng FastAPI, FastEmbed, và Qdrant chạy ở chế độ local.
+## 1. Giới thiệu
+
+Dự án này xây dựng một API đơn giản để tìm kiếm ngữ nghĩa (semantic search) dựa trên:
+- Qdrant để lưu trữ và truy vấn vector.
+- FastEmbed để tạo embedding từ các từ khóa.
+- Google Gemini (gemini-2.0-flash) để trích xuất các từ khóa từ câu nhập tự nhiên.
+
+Luồng hoạt động:
+1. Người dùng gửi một câu văn tự nhiên (ví dụ: "Tôi muốn đi ăn nhà hàng cùng bạn bè").
+2. Gemini sẽ trích xuất 3–5 từ khóa chính (ví dụ: "nhà hàng", "bạn bè", "ăn uống").
+3. Hệ thống sẽ search từng từ khóa riêng biệt trong Qdrant.
+4. Trả kết quả riêng cho từng từ khóa, không gộp và không lọc trùng text (để hiển thị các vùng miền khác nhau).
 
 ---
 
-## 1. Cấu trúc thư mục
+## 2. Cấu trúc thư mục
 
-``` 
-project_root/
+```
+project/
 ├── app/
-│   ├── main.py
-│   ├── requirements.txt
-│   └── data/
-│       └── qdrant_storage/
+│   ├── data/
+│   │   └── qdrant_storage/        # Dữ liệu Qdrant (tự tạo khi chạy)
+│   ├── main.py                    # Code API chính
+│   └── requirements.txt
 ├── Dockerfile
-└── docker-compose.yaml
+├── docker-compose.yaml
+└── README.md
 ```
 
 ---
 
-## 2. Thiết lập môi trường
+## 3. Cài đặt và chạy
 
-### a. Cài Docker và Docker Compose
-Đảm bảo máy đã cài sẵn:
-- Docker Engine
-- Docker Compose (phiên bản >= 2)
+### a. Thiết lập file `.env`
 
-### b. Xây dựng và khởi động container
+Tạo file `.env` cùng cấp với `app/main.py` (hoặc ở root) và thêm:
+```
+GOOGLE_API_KEY=your_gemini_api_key_here
+```
+
+### b. Cài đặt dependencies nếu chạy local
+
+```
+pip install -r app/requirements.txt
+```
+
+### c. Chạy bằng Docker
 
 ```
 docker compose up --build
 ```
 
-Lần đầu chạy, hệ thống sẽ tự động tải model embedding từ Hugging Face (mất khoảng 1–2 phút).
-
----
-
-## 3. Kiểm tra hoạt động
-
-Sau khi container khởi động thành công, truy cập:
-
+Server sẽ chạy ở:
 ```
-http://localhost:8000/docs
-```
-
-hoặc gọi trực tiếp API:
-
-```
-GET http://localhost:8000/search?q=trái+cây&limit=5
+http://localhost:8000
 ```
 
 ---
 
-## 4. Mount dữ liệu Qdrant
+## 4. Các endpoint
 
-Thư mục dữ liệu Qdrant được lưu cục bộ để không mất dữ liệu sau khi container tắt.
-
+### 4.1. Kiểm tra server
 ```
-volumes:
-  - ./app/data/qdrant_storage:/app/data/qdrant_storage
+GET /
 ```
+Trả về trạng thái hoạt động.
 
-Nếu muốn mount cả source code để cập nhật code mà không cần build lại, thêm:
+---
 
+### 4.2. Search cơ bản
 ```
-volumes:
-  - ./app:/app
-  - ./app/data/qdrant_storage:/app/data/qdrant_storage
+GET /search?q=nhà hàng&limit=5
+```
+Tìm kiếm theo từ khóa đơn, dùng FastEmbed + Qdrant.
+
+**Ví dụ output:**
+```json
+[
+  {
+    "score": 0.87,
+    "payload": {
+      "word": "cửa hàng",
+      "region": "miền Nam",
+      "video": "https://...",
+      "description": "..."
+    }
+  }
+]
 ```
 
 ---
 
-## 5. Tái tạo dữ liệu (nếu đổi model)
-
-Nếu bạn đổi model trong main.py, cần xóa dữ liệu cũ vì vector size khác nhau:
+### 4.3. Semantic search (tự động trích xuất keyword)
 
 ```
-rm -rf app/data/qdrant_storage/*
+GET /semantic_search?text=tôi muốn đi ăn nhà hàng cùng bạn bè
 ```
 
-Sau đó index lại dữ liệu mới bằng script index_data.py (tạo riêng).
+Luồng hoạt động:
+1. Gemini trích xuất từ khóa chính.
+2. Mỗi từ khóa sẽ được search riêng biệt trong Qdrant.
+3. Trả về danh sách kết quả riêng cho từng từ khóa.
+
+**Ví dụ output:**
+```json
+{
+  "input_text": "tôi muốn đi ăn nhà hàng cùng bạn bè",
+  "keywords": ["đi ăn", "nhà hàng", "bạn bè"],
+  "search_results": {
+    "đi ăn": {
+      "total_results": 5,
+      "results": [...]
+    },
+    "nhà hàng": {
+      "total_results": 5,
+      "results": [...]
+    },
+    "bạn bè": {
+      "total_results": 3,
+      "results": [...]
+    }
+  }
+}
+```
 
 ---
 
-## 6. Lệnh hữu ích
+## 5. Mô tả file chính
 
-- Dừng container:
+**main.py**
+- `/search`: Search cơ bản bằng vector.
+- `/semantic_search`: Search nâng cao, có trích xuất từ khóa bằng Gemini, không gộp, không lọc trùng text.
+- `model`: Sử dụng `BAAI/bge-small-en` từ FastEmbed.
+- `QdrantClient`: Kết nối với thư mục `data/qdrant_storage` (local Qdrant).
 
-```
-docker compose down
-```
+---
 
-- Xem log:
+## 6. Troubleshooting
 
+### a. Nếu server không phản hồi
+Kiểm tra log container:
 ```
 docker logs rag_api
 ```
 
-- Mở shell trong container:
+### b. Nếu Gemini báo lỗi 401
+Kiểm tra lại `.env` xem đã điền đúng `GOOGLE_API_KEY`.
 
-```
-docker exec -it rag_api bash
-```
-
----
-
-## 7. Ghi chú
-
-- Model embedding hiện tại: BAAI/bge-small-en
-- Nếu bạn từng dùng model sentence-transformers/all-MiniLM-L6-v2, cần đồng nhất model khi index và search.
-- Mặc định API không có route "/", bạn có thể thêm:
-
-```python
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "RAG API is running"}
-```
+### c. Nếu search chỉ ra 1 kết quả
+Có thể do dữ liệu Qdrant chưa đủ hoặc các payload bị trùng. 
+API hiện đã bỏ lọc trùng nên nếu dữ liệu có nhiều vùng miền sẽ hiển thị đầy đủ.
 
 ---
 
-## 8. License
+## 7. Gợi ý mở rộng
 
-Dự án được phát triển cho mục đích học tập và thử nghiệm.
+- Thêm endpoint `/async_semantic_search` để chạy tìm kiếm song song cho các keyword.
+- Tích hợp `BAAI/bge-m3` hoặc `paraphrase-multilingual-MiniLM-L12-v2` nếu cần tiếng Việt tốt hơn.
+- Kết hợp caching để tránh gọi Gemini nhiều lần cho cùng 1 câu hỏi.
+
+---
+
+## 8. Tác giả
+RAG API demo – tích hợp FastAPI, Qdrant, FastEmbed và Gemini.
