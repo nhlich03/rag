@@ -1,19 +1,23 @@
 from fastapi import FastAPI
 from qdrant_client import QdrantClient
-from fastembed import TextEmbedding
-from google import genai
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+import numpy as np
 
 # =====================================================
 # 1. Cấu hình Gemini + môi trường
 # =====================================================
 
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")  # Đảm bảo .env có GEMINI_API_KEY
 
-# Khởi tạo Gemini client
-client_llm = genai.Client(api_key=api_key)
+if not api_key:
+    raise ValueError("❌ Missing GEMINI_API_KEY in environment variables")
+
+genai.configure(api_key=api_key)
+gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 
 # =====================================================
 # 2. Cấu hình FastAPI + Qdrant
@@ -21,17 +25,26 @@ client_llm = genai.Client(api_key=api_key)
 
 app = FastAPI()
 
-# Model embedding (giữ nguyên fastembed)
-model = TextEmbedding(model_name="BAAI/bge-small-en")
+# Model nhúng SentenceTransformer
+model = SentenceTransformer("BAAI/bge-m3")
 
-# Kết nối Qdrant
+# Kết nối Qdrant local (đã mount volume /app/data/qdrant_storage)
 client = QdrantClient(path="/app/data/qdrant_storage")
 
 COLLECTION = "sign_vectors"
 
 
 # =====================================================
-# 3. Endpoint search cơ bản
+# 3. Hàm tiện ích encode text
+# =====================================================
+
+def get_embedding(text: str):
+    embedding = model.encode([text], convert_to_numpy=True).astype("float32")[0]
+    return embedding
+
+
+# =====================================================
+# 4. Endpoint search cơ bản
 # =====================================================
 
 @app.get("/search")
@@ -39,7 +52,7 @@ def search(q: str, limit: int = 5):
     """
     Search theo keyword đơn lẻ.
     """
-    vec = list(model.query_embed([q]))[0]
+    vec = get_embedding(q)
     hits = client.search(
         collection_name=COLLECTION,
         query_vector=vec,
@@ -56,39 +69,33 @@ def search(q: str, limit: int = 5):
 
 
 # =====================================================
-# 4. Endpoint semantic_search (trả kết quả riêng từng keyword, KHÔNG lọc trùng)
+# 5. Endpoint semantic_search (Gemini trích keyword, search từng keyword riêng)
 # =====================================================
 
 @app.get("/semantic_search")
 def semantic_search(text: str, limit: int = 5):
     """
-    Nhận câu tự nhiên, trích từ khóa bằng Gemini,
-    search từng keyword riêng biệt,
-    trả kết quả riêng từng keyword.
+    Trích keyword bằng Gemini, search từng keyword riêng,
+    trả kết quả độc lập cho từng keyword.
     """
 
-    # --- 1️⃣ Trích xuất keyword bằng Gemini ---
-    intent_prompt = f"""Hãy trích xuất 3–5 từ khóa quan trọng mô tả ý định của câu sau, cách nhau bởi dấu phẩy: "{text}" """
-    resp = client_llm.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=intent_prompt
-    )
+    # --- 1️⃣ Gọi Gemini trích keyword ---
+    intent_prompt = f"""Hãy trích xuất các từ khóa quan trọng mô tả ý định của câu sau, cách nhau bởi dấu phẩy: "{text}" """
+    resp = gemini_model.generate_content(intent_prompt)
 
     keywords_raw = resp.text.strip() if hasattr(resp, "text") else str(resp)
     keywords = [kw.strip() for kw in keywords_raw.split(",") if kw.strip()] or [text]
 
-    # --- 2️⃣ Search từng keyword ---
+    # --- 2️⃣ Search từng keyword riêng ---
     results_by_keyword = {}
-
     for kw in keywords:
-        vec = list(model.query_embed([kw]))[0]
+        vec = get_embedding(kw)
         hits = client.search(
             collection_name=COLLECTION,
             query_vector=vec,
             limit=limit
         )
 
-        # Giữ nguyên toàn bộ hits, không lọc
         keyword_results = [
             {
                 "score": float(h.score),
@@ -111,7 +118,7 @@ def semantic_search(text: str, limit: int = 5):
 
 
 # =====================================================
-# 5. Root endpoint (test)
+# 6. Root endpoint (test)
 # =====================================================
 
 @app.get("/")

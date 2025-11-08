@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-fastembed
 qdrant-client
-numpy
+sentence-transformers
+torch
+google-generativeai
 python-dotenv
-google-genai
+numpy
