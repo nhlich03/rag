@@ -81,7 +81,7 @@ Tìm kiếm theo từ khóa đơn, dùng FastEmbed + Qdrant.
   {
     "score": 0.87,
     "payload": {
-      "word": "cửa hàng",
+      "word": "nhà hàng",
       "region": "miền Nam",
       "video": "https://...",
       "description": "..."
